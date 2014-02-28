@@ -4,16 +4,18 @@ import com.orangesignal.csv.Csv;
 import com.orangesignal.csv.CsvConfig;
 import com.orangesignal.csv.handlers.CsvEntityListHandler;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.io.FileUtils;
+import org.dom4j.Document;
+import org.dom4j.DocumentException;
+import org.dom4j.Element;
+import org.dom4j.io.OutputFormat;
+import org.dom4j.io.SAXReader;
 import org.dom4j.io.XMLWriter;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.select.Elements;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -37,7 +39,7 @@ public class Main {
 	/** 出力ファイル名デフォルト値 */
 	private static final String OUTPUT_FILE = "src/test/resources/data/output.edm";
 
-    private static final String PNAME = "p-name";
+    private static final String PNAME = "P-NAME";
 
 	/**
 	 * main
@@ -65,29 +67,42 @@ public class Main {
         Collections.sort(dictionaries, comparator);
 
         // load input.edm
-        File input = new File(files[1]);
         Document xmlDoc = null;
+        File input = new File(files[1]);
+        final SAXReader reader = new SAXReader();
         try {
-            xmlDoc = Jsoup.parse(input, "UTF-8");
-        } catch (IOException e) {
+            xmlDoc = reader.read(input);
+        } catch (DocumentException e) {
             e.printStackTrace();
         }
-        Elements elements = xmlDoc.getElementsByTag("ENTITY");
-        xmlDoc.getElementsByTag("ATTR").forEach(s -> elements.add(s));
-        xmlDoc.getElementsByTag("INDEX").forEach(s -> elements.add(s));
-        xmlDoc.getElementsByTag("RELATION").forEach(s -> elements.add(s));
-        dictionaries.forEach((dictionary) -> elements.stream()
-                .filter(s -> s.attr(PNAME).indexOf(dictionary.japanese) > -1)
-                .map(s -> s.attr(PNAME, StringUtill.camelToSnake(s.attr(PNAME).replace(dictionary.japanese, dictionary.english))))
-                .forEach(System.out::println));
 
+        List list = xmlDoc.getRootElement().selectNodes("//ENTITY");
+        xmlDoc.getRootElement().selectNodes("//ATTR").forEach(s -> list.add((s)));
+        xmlDoc.getRootElement().selectNodes("//INDEX").forEach(s -> list.add((s)));
+        xmlDoc.getRootElement().selectNodes("//ATTR").forEach(s -> list.add((s)));
+
+        dictionaries.forEach((dictionary) -> list.stream()
+                .filter(s -> StringUtils.isNotEmpty(((Element) s).attributeValue(PNAME)))
+                .filter(s -> ((Element) s).attributeValue(PNAME).indexOf(dictionary.japanese) > -1)
+                .forEach(s -> ((Element) s).attribute(PNAME).setValue(StringUtill.camelToSnake(((Element) s).attributeValue(PNAME).replace(dictionary.japanese, dictionary.english))))
+        );
+
+        StringWriter stringWriter = new StringWriter();
+        OutputFormat outputFormat = new OutputFormat("", true, "UTF-8");
+        outputFormat.setNewLineAfterDeclaration(false);
+        outputFormat.setNewlines(false);
+        XMLWriter xmlWriter = new XMLWriter(stringWriter, outputFormat);
         try {
-            File file = new File(files[2]);
-            PrintWriter printWriter = new PrintWriter(new BufferedWriter(new FileWriter(file)));
+            xmlWriter.write(xmlDoc);
+            FileUtils.writeStringToFile(new File(files[2]), stringWriter.toString(), "UTF-8");
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-
+            try {
+                xmlWriter.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         System.out.println("end");
