@@ -3,12 +3,18 @@ package edmtranslate;
 import com.orangesignal.csv.Csv;
 import com.orangesignal.csv.CsvConfig;
 import com.orangesignal.csv.handlers.CsvEntityListHandler;
-import com.orangesignal.csv.manager.CsvManager;
-import com.orangesignal.csv.manager.CsvManagerFactory;
 import org.apache.commons.lang3.ArrayUtils;
+import org.dom4j.io.XMLWriter;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -31,6 +37,8 @@ public class Main {
 	/** 出力ファイル名デフォルト値 */
 	private static final String OUTPUT_FILE = "src/test/resources/data/output.edm";
 
+    private static final String PNAME = "p-name";
+
 	/**
 	 * main
      * @param args dictionary file, input edm file, output edm file
@@ -39,18 +47,50 @@ public class Main {
 
 		System.out.println("start");
         String[] files = getFileNames(args);
+        List<Dictionary> dictionaries = new ArrayList<>();
 
-        CsvManager csvManager = CsvManagerFactory.newCsvManager();
         try {
             // Load csv and convert to POJO.
-            List<Dictionary> dictionaries = Csv.load(new File(files[0]), new CsvConfig(), new CsvEntityListHandler<Dictionary>(Dictionary.class));
-            Comparator<Dictionary> comparator = (x, y) -> y.japanese.length() - x.japanese.length();
-            // sort dictionaries by japanese desc.
-            Collections.sort(dictionaries, comparator);
+            dictionaries =
+                    Csv.load(new File(files[0]),
+                            new CsvConfig(),
+                            new CsvEntityListHandler<>(Dictionary.class));
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println ("end");
+
+        Comparator<Dictionary> comparator = (x, y) -> y.japanese.length() - x.japanese.length();
+
+        // sort dictionaries by japanese desc.
+        Collections.sort(dictionaries, comparator);
+
+        // load input.edm
+        File input = new File(files[1]);
+        Document xmlDoc = null;
+        try {
+            xmlDoc = Jsoup.parse(input, "UTF-8");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Elements elements = xmlDoc.getElementsByTag("ENTITY");
+        xmlDoc.getElementsByTag("ATTR").forEach(s -> elements.add(s));
+        xmlDoc.getElementsByTag("INDEX").forEach(s -> elements.add(s));
+        xmlDoc.getElementsByTag("RELATION").forEach(s -> elements.add(s));
+        dictionaries.forEach((dictionary) -> elements.stream()
+                .filter(s -> s.attr(PNAME).indexOf(dictionary.japanese) > -1)
+                .map(s -> s.attr(PNAME, StringUtill.camelToSnake(s.attr(PNAME).replace(dictionary.japanese, dictionary.english))))
+                .forEach(System.out::println));
+
+        try {
+            File file = new File(files[2]);
+            PrintWriter printWriter = new PrintWriter(new BufferedWriter(new FileWriter(file)));
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+
+        }
+
+        System.out.println("end");
 	}
 
     /**
