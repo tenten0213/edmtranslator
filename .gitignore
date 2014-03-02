@@ -1,2 +1,5 @@
 /target
 output.edm
+.project
+.classpath
+.settings
