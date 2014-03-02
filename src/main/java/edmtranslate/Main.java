@@ -84,13 +84,17 @@ public class Main {
         dictionaries.forEach((dictionary) -> list.stream()
                 .filter(s -> StringUtils.isNotEmpty(((Element) s).attributeValue(PNAME)))
                 .filter(s -> ((Element) s).attributeValue(PNAME).indexOf(dictionary.japanese) > -1)
-                .forEach(s -> ((Element) s).attribute(PNAME).setValue(StringUtill.camelToSnake(((Element) s).attributeValue(PNAME).replace(dictionary.japanese, dictionary.english))))
+                .forEach(s -> ((Element) s).attribute(PNAME).setValue(((Element) s).attributeValue(PNAME).replace(dictionary.japanese, dictionary.english)))
         );
+        list.stream()
+            .filter(s -> StringUtils.isNotEmpty(((Element) s).attributeValue(PNAME)))
+            .forEach(s -> ((Element) s).attribute(PNAME).setValue( StringUtill.camelToSnake(((Element) s).attributeValue(PNAME)))) ;
 
         StringWriter stringWriter = new StringWriter();
         OutputFormat outputFormat = new OutputFormat("", true, "UTF-8");
         outputFormat.setNewLineAfterDeclaration(false);
         outputFormat.setNewlines(false);
+        outputFormat.setSuppressDeclaration(true);
         XMLWriter xmlWriter = new XMLWriter(stringWriter, outputFormat);
         try {
             xmlWriter.write(xmlDoc);
