@@ -3,12 +3,13 @@ package edmtranslate;
 import com.orangesignal.csv.Csv;
 import com.orangesignal.csv.CsvConfig;
 import com.orangesignal.csv.handlers.CsvEntityListHandler;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.io.FileUtils;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.Element;
+import org.dom4j.dom.DOMDocument;
 import org.dom4j.io.OutputFormat;
 import org.dom4j.io.SAXReader;
 import org.dom4j.io.XMLWriter;
@@ -67,7 +68,7 @@ public class Main {
         Collections.sort(dictionaries, comparator);
 
         // load input.edm
-        Document xmlDoc = null;
+        Document xmlDoc = new DOMDocument();
         File input = new File(files[1]);
         final SAXReader reader = new SAXReader();
         try {
@@ -76,14 +77,15 @@ public class Main {
             e.printStackTrace();
         }
 
-        List list = xmlDoc.getRootElement().selectNodes("//ENTITY");
-        xmlDoc.getRootElement().selectNodes("//ATTR").forEach(s -> list.add((s)));
-        xmlDoc.getRootElement().selectNodes("//INDEX").forEach(s -> list.add((s)));
-        xmlDoc.getRootElement().selectNodes("//ATTR").forEach(s -> list.add((s)));
+        Element rootElement = xmlDoc.getRootElement();
+        List list = rootElement.selectNodes("//ENTITY");
+        rootElement.selectNodes("//ATTR").forEach(s -> list.add((s)));
+        rootElement.selectNodes("//INDEX").forEach(s -> list.add((s)));
+        // rootElement.selectNodes("//RELATION").forEach(s -> list.add((s)));
 
         dictionaries.forEach((dictionary) -> list.stream()
                 .filter(s -> StringUtils.isNotEmpty(((Element) s).attributeValue(PNAME)))
-                .filter(s -> ((Element) s).attributeValue(PNAME).indexOf(dictionary.japanese) > -1)
+                .filter(s -> ((Element) s).attributeValue(PNAME).contains(dictionary.japanese))
                 .forEach(s -> ((Element) s).attribute(PNAME).setValue(((Element) s).attributeValue(PNAME).replace(dictionary.japanese, dictionary.english)))
         );
         list.stream()
